@@ -14,6 +14,10 @@ to install required packages. If you'd rather use a venv you probably already kn
 
 ## Usage
 
+**WARNING: ALWAYS BACKUP YOUR MANIFEST FILES AND/OR GAME FILES BEFORE USING THIS SCRIPT!!!**
+The script automatically creates a backup of the manifest file in case things break but you should
+NEVER rely on this. *ALWAYS MAKE YOUR OWN BACKUPS, IF SOMETHING DOES NOT WORK CORRECTLY YOU ARE ON YOUR OWN.*
+
 To block an update for a game of app, run the following command:
 
 `python main.py <appid>`
@@ -26,8 +30,10 @@ or a website such as steamdb.
 The script will ask for your username and password, as well as potential 2FA or email codes for verification
 purposes during execution. This is required as depot manifests can only be accessed if you own a license for
 the software. This script only downloads the depot manifest listings to obtain the newest manifest GID and 
-nothing else. Your credentials are NOT stored (unfortunately, which means that you have to reauthenticate
-every time. TODO: Fix this).
+nothing else. Your credentials are NOT stored by default. Should you wish to fully automate this process,
+you may pass the `-s` flag when running the script. This will write your username and login key to a json file
+in the current directory and use it during subsequent calls instead of having you reauthenticate. If the key
+expires you will have to reauthenticate. Note that your password or 2FA secrets are NEVER stored by this script.
 
 ## Platform Compatibility
 

@@ -5,6 +5,7 @@ from collections import OrderedDict
 import time
 from typing import Dict, List
 import winreg
+import json
 
 from steam.client import SteamClient
 from steam.client.cdn import CDNClient, CDNDepotManifest
@@ -23,7 +24,18 @@ def get_manifest_location(appid: int) -> Path:
 
     return get_game_location(appid).parent.parent / ("appmanifest_%i.acf" % appid)
 
-def disable_updates(appid: int, launch_game=False, disable_auto_update=False):
+def load_credentials():
+
+    with open("./.auth", "r") as f:
+        data = json.load(f)
+    return (data["user"], data["key"])
+
+def save_credentials(user: str, key: str):
+
+    with open("./.auth", "w") as f:
+        json.dump({"user": user, "key": key}, f)
+
+def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False):
 
     logger = logging.getLogger("patcher")
 
@@ -37,9 +49,27 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False):
     logger.debug("Signing into steam...")
     client = SteamClient()
     client.set_credential_location(".")
+    user = ""
+    if persist_auth:
+        try:
+            user, key = load_credentials()
+        except OSError:
+            pass
     if not client.relogin_available:
-        logger.warning("Not possible to relogin, user needs to provide credentials.")
-        client.cli_login() #TODO: Replace with better login handler
+        if user:
+            try:
+                logging.debug("Trying to log in with persistent key...")
+                client.login(user, login_key=key)
+            except:
+                logger.warning("Not possible to relogin, user needs to provide credentials.")
+                key = ""
+                pass
+        if not client.logged_on:
+            client.cli_login() #TODO: Replace with better login handler
+
+    if persist_auth and not key:
+        client.wait_event("new_login_key", timeout=5)
+        save_credentials(client.username, client.login_key)
     cdn = CDNClient(client)
     logger.debug("Fetching manifest listings for app %i from depot..." % appid)
     patches: List[CDNDepotManifest] = cdn.get_manifests(appid)
@@ -89,9 +119,10 @@ parser.add_argument("appid", type=int)
 parser.add_argument("-l", "--launch", action="store_true")
 parser.add_argument("--disable-auto-update", action="store_true")
 parser.add_argument("-v", "--verbose", action="store_true")
+parser.add_argument("-s", "--persist-auth", action="store_true")
 
 args = parser.parse_args()
 
 logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
-disable_updates(args.appid, args.launch, args.disable_auto_update)
+disable_updates(args.appid, args.launch, args.disable_auto_update, args.persist_auth)

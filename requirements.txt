@@ -1,0 +1,2 @@
+steam[client]
+git+https://github.com/WinterPhoenix/steamfiles@patch-1

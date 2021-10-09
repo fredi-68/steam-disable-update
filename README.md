@@ -18,10 +18,9 @@ to install required packages. If you'd rather use a venv you probably already kn
 The script automatically creates a backup of the manifest file in case things break but you should
 NEVER rely on this. *ALWAYS MAKE YOUR OWN BACKUPS, IF SOMETHING DOES NOT WORK CORRECTLY YOU ARE ON YOUR OWN.*
 
-To block an update for a game of app.
-First **MAKE SURE STEAM IS CLOSED**.
-Once you are sure steam is not running,
-run the following command:
+The script will attempt to close steam if it is running automatically. If this for some reason does not work,
+the command will abort with an error. In this case please close steam manually to proceed.
+To block an update for a game of app run the following command:
 
 `python main.py <appid>`
 

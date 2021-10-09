@@ -1,4 +1,7 @@
 import argparse
+import os
+import sys
+import subprocess
 import logging
 from pathlib import Path
 from collections import OrderedDict
@@ -35,6 +38,28 @@ def save_credentials(user: str, key: str):
     with open("./.auth", "w") as f:
         json.dump({"user": user, "key": key}, f)
 
+def kill_steam():
+
+    logger = logging.getLogger("process_management")
+
+    def _kill_steam_windows():
+        #yeah this is pretty awful but it works
+        if len(subprocess.run("""tasklist /fi "imagename eq steam.exe" /fo csv /nh""", stdout=subprocess.PIPE, encoding="utf-8").stdout.split(",")) < 2:
+            return False
+        logger.debug("Steam is running, attempting to kill it...")
+        try:
+            os.system("""taskkill /fi "imagename eq steam.exe" /f""")
+        except OSError as e:
+            raise RuntimeError("Unable to automatically close steam: %s. Please ensure steam is closed before attempting to run this script." % str(e))
+        logger.debug("Success!")
+        return True
+
+    if sys.platform.startswith("win32"):
+        return _kill_steam_windows()
+    else:
+        #good luck lol
+        return False
+
 def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False):
 
     logger = logging.getLogger("patcher")
@@ -43,7 +68,8 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
     manifest_path = get_manifest_location(appid)
     logger.debug("Manifest location is %s" % manifest_path)
 
-    #TODO: Shutdown steam if it is running
+    #Shutdown steam if it is running
+    steam_need_restart = kill_steam()
 
     logger.info("Downloading latest patch data...")
     logger.debug("Signing into steam...")
@@ -62,10 +88,10 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
                 client.login(user, login_key=key)
             except:
                 logger.warning("Not possible to relogin, user needs to provide credentials.")
-                key = ""
-                pass
         if not client.logged_on:
             client.cli_login() #TODO: Replace with better login handler
+            if user:
+                key = ""
 
     if persist_auth and not key:
         client.wait_event("new_login_key", timeout=5)
@@ -110,7 +136,7 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
 
     logger.info("Done!")
 
-    #TODO: Relaunch steam
+    #Relaunch steam
     #TODO: If requested, launch game
 
 parser = argparse.ArgumentParser()

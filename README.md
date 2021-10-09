@@ -39,5 +39,4 @@ expires you will have to reauthenticate. Note that your password or 2FA secrets 
 
 ## Platform Compatibility
 
-Currently this only works on Windows as it uses the registry to find the installation path of the game (and
-thus the local manifest file). Linux support is planned.
+Currently this works on both Windows and Linux(tested on Arch).

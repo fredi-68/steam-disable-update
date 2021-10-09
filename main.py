@@ -17,13 +17,15 @@ from steam.client.cdn import CDNClient, CDNDepotManifest
 import steamfiles.acf
 
 def get_game_location(appid: int) -> Path:
-
-    #Thank you kinsi55 for this trick
-    #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
-    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
-    path = winreg.QueryValueEx(key, "InstallLocation")[0]
-    winreg.CloseKey(key)
-    return Path(path)
+    if sys.platform.startswith("win32"):
+        #Thank you kinsi55 for this trick
+        #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
+        path = winreg.QueryValueEx(key, "InstallLocation")[0]
+        winreg.CloseKey(key)
+        return Path(path)
+    elif sys.platform == 'linux':
+        return Path(f"{os.getenv('HOME')}/.local/share/Steam/steamapps/some/folder")
 
 def get_steam_location():
     if sys.platform.startswith("win32"):

@@ -23,6 +23,16 @@ def get_game_location(appid: int) -> Path:
     winreg.CloseKey(key)
     return Path(path)
 
+def get_steam_location():
+
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Valve\\Steam")
+    except OSError as e:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Valve\\Steam")
+    path = winreg.QueryValueEx(key, "InstallPath")[0]
+    winreg.CloseKey(key)
+    return Path(path)
+
 def get_manifest_location(appid: int) -> Path:
 
     return get_game_location(appid).parent.parent / ("appmanifest_%i.acf" % appid)
@@ -137,6 +147,12 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
     logger.info("Done!")
 
     #Relaunch steam
+    if steam_need_restart:
+        p = get_steam_location() / "steam.exe"
+        try:
+            os.spawnl(os.P_NOWAIT, p, p)
+        except OSError as e:
+            logger.warning("Failed to restart steam: %s" % str(e))
     #TODO: If requested, launch game
 
 parser = argparse.ArgumentParser()

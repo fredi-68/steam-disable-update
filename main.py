@@ -7,8 +7,10 @@ from pathlib import Path
 from collections import OrderedDict
 import time
 from typing import Dict, List
-import winreg
 import json
+import psutil
+if sys.platform.startswith("win32"):
+    import winreg
 
 from steam.client import SteamClient
 from steam.client.cdn import CDNClient, CDNDepotManifest
@@ -49,26 +51,42 @@ def save_credentials(user: str, key: str):
         json.dump({"user": user, "key": key}, f)
 
 def kill_steam():
+    """Closes steam
 
+    Raises:
+        RuntimeError: if steam is running, but not closed
+
+    Returns:
+        False: if steam is not running
+        True: if steam is killed
+    """
     logger = logging.getLogger("process_management")
+    
+    # startsWith because windows has .exe
+    steam_processes = [p for p in psutil.process_iter() if p.name().startswith('steam')]
 
-    def _kill_steam_windows():
-        #yeah this is pretty awful but it works
-        if len(subprocess.run("""tasklist /fi "imagename eq steam.exe" /fo csv /nh""", stdout=subprocess.PIPE, encoding="utf-8").stdout.split(",")) < 2:
-            return False
-        logger.debug("Steam is running, attempting to kill it...")
-        try:
-            os.system("""taskkill /fi "imagename eq steam.exe" /f""")
-        except OSError as e:
-            raise RuntimeError("Unable to automatically close steam: %s. Please ensure steam is closed before attempting to run this script." % str(e))
-        logger.debug("Success!")
-        return True
-
-    if sys.platform.startswith("win32"):
-        return _kill_steam_windows()
-    else:
-        #good luck lol
+    if not steam_processes:
+        logger.debug("Steam is not running")
         return False
+    
+    # Killing the main steam process should
+    # automatically kill all children
+    steam_process = steam_processes[0]
+    try:
+        steam_process.terminate()
+    except psutil.NoSuchProcess:
+        logger.error("Steam was running, but dissapeared before being terminated.")
+    except psutil.AccessDenied as e:
+        raise RuntimeError("Unable to automatically close steam: %s. Please ensure steam is closed before attempting to run this script." % str(e))
+
+    try:
+        steam_process.wait(10)
+    except psutil.TimeoutExpired:
+        logger.debug("Steam did not terminate in 10 seconds, killing")
+        steam_process.kill()
+
+    logger.debug("Success!")
+    return True
 
 def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False):
 

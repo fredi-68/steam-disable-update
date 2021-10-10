@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from collections import OrderedDict
 import time
-from typing import Dict, List
+from typing import List
 import json
 import psutil
 if sys.platform == "win32":

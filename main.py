@@ -123,6 +123,7 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
     client = SteamClient()
     client.set_credential_location(".")
     user = ""
+    key = ""
     if persist_auth:
         try:
             user, key = load_credentials()

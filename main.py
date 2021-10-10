@@ -9,7 +9,7 @@ import time
 from typing import Dict, List
 import json
 import psutil
-if sys.platform.startswith("win32"):
+if sys.platform == "win32":
     import winreg
 
 from steam.client import SteamClient
@@ -17,7 +17,7 @@ from steam.client.cdn import CDNClient, CDNDepotManifest
 import steamfiles.acf
 
 def get_game_location(appid: int) -> Path:
-    if sys.platform.startswith("win32"):
+    if sys.platform == "win32":
         #Thank you kinsi55 for this trick
         #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
@@ -28,7 +28,7 @@ def get_game_location(appid: int) -> Path:
         return Path(f"{os.getenv('HOME')}/.local/share/Steam/steamapps/some/folder")
 
 def get_steam_location():
-    if sys.platform.startswith("win32"):
+    if sys.platform == "win32":
         try:
             key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Valve\\Steam")
         except OSError as e:
@@ -174,7 +174,7 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
     if steam_need_restart:
         p = get_steam_location()
         try:
-            if sys.platform.startswith('win32'):
+            if sys.platform == 'win32':
                 os.spawnl(os.P_NOWAIT, p, p)
             elif sys.platform == 'linux':
                 subprocess.Popen([p])

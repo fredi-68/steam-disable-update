@@ -31,7 +31,7 @@ def get_game_location(appid: int) -> Path:
 
     if sys.platform == "win32":
         return _get_game_location_windows(appid)
-    elif sys.platform == 'linux':
+    elif sys.platform == "linux":
         return _get_game_location_linux(appid)
 
 def get_steam_location():
@@ -45,12 +45,12 @@ def get_steam_location():
         return Path(path+"/steam.exe")
 
     def _get_steam_location_linux():
-        out = subprocess.check_output(['bash', '-c', 'whereis steam'])
-        return Path(out.decode('utf-8').split(' ')[1])
+        out = subprocess.check_output(["bash", "-c", "whereis steam"])
+        return Path(out.decode("utf-8").split(" ")[1])
 
     if sys.platform == "win32":
         return _get_steam_location_windows()        
-    elif sys.platform == 'linux':
+    elif sys.platform == "linux":
         return _get_steam_location_linux()
 
 
@@ -82,7 +82,7 @@ def kill_steam():
     logger = logging.getLogger("process_management")
     
     # startsWith because windows has .exe
-    steam_processes = [p for p in psutil.process_iter() if p.name().startswith('steam')]
+    steam_processes = [p for p in psutil.process_iter() if p.name().startswith("steam")]
 
     if not steam_processes:
         logger.debug("Steam is not running")
@@ -195,9 +195,9 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
         p = get_steam_location()
 
         try:
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 _start_steam_windows(p)
-            elif sys.platform == 'linux':
+            elif sys.platform == "linux":
                 _start_steam_linux(p)
         except OSError as e:
             logger.warning("Failed to restart steam: %s" % str(e))

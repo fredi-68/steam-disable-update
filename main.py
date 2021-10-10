@@ -7,8 +7,10 @@ from pathlib import Path
 from collections import OrderedDict
 import time
 from typing import Dict, List
-import winreg
 import json
+import psutil
+if sys.platform == "win32":
+    import winreg
 
 from steam.client import SteamClient
 from steam.client.cdn import CDNClient, CDNDepotManifest
@@ -16,22 +18,41 @@ import steamfiles.acf
 
 def get_game_location(appid: int) -> Path:
 
-    #Thank you kinsi55 for this trick
-    #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
-    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
-    path = winreg.QueryValueEx(key, "InstallLocation")[0]
-    winreg.CloseKey(key)
-    return Path(path)
+    def _get_game_location_windows(appid: int):
+        #Thank you kinsi55 for this trick
+        #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
+        path = winreg.QueryValueEx(key, "InstallLocation")[0]
+        winreg.CloseKey(key)
+        return Path(path)
+
+    def _get_game_location_linux(appid: int):
+        return Path(f"{os.getenv('HOME')}/.local/share/Steam/steamapps/some/folder")
+
+    if sys.platform == "win32":
+        return _get_game_location_windows(appid)
+    elif sys.platform == 'linux':
+        return _get_game_location_linux(appid)
 
 def get_steam_location():
+    def _get_steam_location_windows():
+        try:
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Valve\\Steam")
+        except OSError as e:
+            key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Valve\\Steam")
+        path = winreg.QueryValueEx(key, "InstallPath")[0]
+        winreg.CloseKey(key)
+        return Path(path+"/steam.exe")
 
-    try:
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Valve\\Steam")
-    except OSError as e:
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\WOW6432Node\\Valve\\Steam")
-    path = winreg.QueryValueEx(key, "InstallPath")[0]
-    winreg.CloseKey(key)
-    return Path(path)
+    def _get_steam_location_linux():
+        out = subprocess.check_output(['bash', '-c', 'whereis steam'])
+        return Path(out.decode('utf-8').split(' ')[1])
+
+    if sys.platform == "win32":
+        return _get_steam_location_windows()        
+    elif sys.platform == 'linux':
+        return _get_steam_location_linux()
+
 
 def get_manifest_location(appid: int) -> Path:
 
@@ -49,26 +70,42 @@ def save_credentials(user: str, key: str):
         json.dump({"user": user, "key": key}, f)
 
 def kill_steam():
+    """Closes steam
 
+    Raises:
+        RuntimeError: if steam is running, but not closed
+
+    Returns:
+        False: if steam is not running
+        True: if steam is killed
+    """
     logger = logging.getLogger("process_management")
+    
+    # startsWith because windows has .exe
+    steam_processes = [p for p in psutil.process_iter() if p.name().startswith('steam')]
 
-    def _kill_steam_windows():
-        #yeah this is pretty awful but it works
-        if len(subprocess.run("""tasklist /fi "imagename eq steam.exe" /fo csv /nh""", stdout=subprocess.PIPE, encoding="utf-8").stdout.split(",")) < 2:
-            return False
-        logger.debug("Steam is running, attempting to kill it...")
-        try:
-            os.system("""taskkill /fi "imagename eq steam.exe" /f""")
-        except OSError as e:
-            raise RuntimeError("Unable to automatically close steam: %s. Please ensure steam is closed before attempting to run this script." % str(e))
-        logger.debug("Success!")
-        return True
-
-    if sys.platform.startswith("win32"):
-        return _kill_steam_windows()
-    else:
-        #good luck lol
+    if not steam_processes:
+        logger.debug("Steam is not running")
         return False
+    
+    # Killing the main steam process should
+    # automatically kill all children
+    steam_process = steam_processes[0]
+    try:
+        steam_process.terminate()
+    except psutil.NoSuchProcess:
+        logger.error("Steam was running, but dissapeared before being terminated.")
+    except psutil.AccessDenied as e:
+        raise RuntimeError("Unable to automatically close steam: %s. Please ensure steam is closed before attempting to run this script." % str(e))
+
+    try:
+        steam_process.wait(10)
+    except psutil.TimeoutExpired:
+        logger.debug("Steam did not terminate in 10 seconds, killing")
+        steam_process.kill()
+
+    logger.debug("Success!")
+    return True
 
 def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False):
 
@@ -148,9 +185,20 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
 
     #Relaunch steam
     if steam_need_restart:
-        p = get_steam_location() / "steam.exe"
-        try:
+        
+        def _start_steam_windows(p: Path):
             os.spawnl(os.P_NOWAIT, p, p)
+
+        def _start_steam_linux(p: Path):
+            subprocess.Popen([p])
+
+        p = get_steam_location()
+
+        try:
+            if sys.platform == 'win32':
+                _start_steam_windows(p)
+            elif sys.platform == 'linux':
+                _start_steam_linux(p)
         except OSError as e:
             logger.warning("Failed to restart steam: %s" % str(e))
     #TODO: If requested, launch game

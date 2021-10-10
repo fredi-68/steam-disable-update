@@ -17,18 +17,25 @@ from steam.client.cdn import CDNClient, CDNDepotManifest
 import steamfiles.acf
 
 def get_game_location(appid: int) -> Path:
-    if sys.platform == "win32":
+
+    def _get_game_location_windows(appid: int):
         #Thank you kinsi55 for this trick
         #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
         path = winreg.QueryValueEx(key, "InstallLocation")[0]
         winreg.CloseKey(key)
         return Path(path)
-    elif sys.platform == 'linux':
+
+    def _get_game_location_linux(appid: int):
         return Path(f"{os.getenv('HOME')}/.local/share/Steam/steamapps/some/folder")
 
-def get_steam_location():
     if sys.platform == "win32":
+        return _get_game_location_windows(appid)
+    elif sys.platform == 'linux':
+        return _get_game_location_linux(appid)
+
+def get_steam_location():
+    def _get_steam_location_windows():
         try:
             key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Valve\\Steam")
         except OSError as e:
@@ -36,9 +43,15 @@ def get_steam_location():
         path = winreg.QueryValueEx(key, "InstallPath")[0]
         winreg.CloseKey(key)
         return Path(path+"/steam.exe")
-    elif sys.platform == 'linux':
+
+    def _get_steam_location_linux():
         out = subprocess.check_output(['bash', '-c', 'whereis steam'])
         return Path(out.decode('utf-8').split(' ')[1])
+
+    if sys.platform == "win32":
+        return _get_steam_location_windows()        
+    elif sys.platform == 'linux':
+        return _get_steam_location_linux()
 
 
 def get_manifest_location(appid: int) -> Path:
@@ -172,13 +185,20 @@ def disable_updates(appid: int, launch_game=False, disable_auto_update=False, pe
 
     #Relaunch steam
     if steam_need_restart:
+        
+        def _start_steam_windows(p: Path):
+            os.spawnl(os.P_NOWAIT, p, p)
+
+        def _start_steam_linux(p: Path):
+            subprocess.Popen([p])
+
         p = get_steam_location()
+
         try:
             if sys.platform == 'win32':
-                os.spawnl(os.P_NOWAIT, p, p)
+                _start_steam_windows(p)
             elif sys.platform == 'linux':
-                subprocess.Popen([p])
-                
+                _start_steam_linux(p)
         except OSError as e:
             logger.warning("Failed to restart steam: %s" % str(e))
     #TODO: If requested, launch game

@@ -20,7 +20,7 @@ NEVER rely on this. *ALWAYS MAKE YOUR OWN BACKUPS, IF SOMETHING DOES NOT WORK CO
 
 The script will attempt to close steam if it is running automatically. If this for some reason does not work,
 the command will abort with an error. In this case please close steam manually to proceed.
-To block an update for a game of app run the following command:
+To block an update for a game or app run the following command:
 
 `python main.py <appid>`
 

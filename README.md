@@ -24,7 +24,7 @@ To block an update for a game or app run the following command:
 
 `python main.py <appid>`
 
-where `appid` is the ID of the game or app you are trying to modify. You can look this up in the manifest file
+where `appid` is the ID of the game or app you are trying to modify, which you can find in the updates tab of your apps properties (Inside the steam library manager, rightclick the app, then click `Properties...` > `Updates`. The App ID should be at the bottom). Alternatively, you can look this up in the manifest file
 or a website such as steamdb.
 
 ## Security Considerations

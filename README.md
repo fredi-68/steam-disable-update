@@ -40,3 +40,8 @@ expires you will have to reauthenticate. Note that your password or 2FA secrets 
 ## Platform Compatibility
 
 Currently this works on both Windows and Linux(tested on Arch).
+
+### (Linux) Script is unable to find game manifest directory
+
+This may happen if you have your game installed to a different drive or directory than the default.
+To fix this you may manually override the path to the game manifest by specifying `-p /path/to/manifest` as an additional argument.

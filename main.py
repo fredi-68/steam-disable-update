@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from collections import OrderedDict
 import time
-from typing import List
+from typing import List, Union
 import json
 import psutil
 if sys.platform == "win32":
@@ -107,12 +107,12 @@ def kill_steam():
     logger.debug("Success!")
     return True
 
-def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False):
+def disable_updates(appid: int, launch_game=False, disable_auto_update=False, persist_auth=False, path_override: Union[Path, None] = None):
 
     logger = logging.getLogger("patcher")
 
     logger.debug("Preparing...")
-    manifest_path = get_manifest_location(appid)
+    manifest_path = path_override or get_manifest_location(appid)
     logger.debug("Manifest location is %s" % manifest_path)
 
     #Shutdown steam if it is running
@@ -211,9 +211,10 @@ parser.add_argument("-l", "--launch", action="store_true")
 parser.add_argument("--disable-auto-update", action="store_true")
 parser.add_argument("-v", "--verbose", action="store_true")
 parser.add_argument("-s", "--persist-auth", action="store_true")
+parser.add_argument("-p", "--manifest_path", type=Path, default=None)
 
 args = parser.parse_args()
 
 logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
-disable_updates(args.appid, args.launch, args.disable_auto_update, args.persist_auth)
+disable_updates(args.appid, args.launch, args.disable_auto_update, args.persist_auth, args.manifest_path)

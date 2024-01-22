@@ -16,23 +16,14 @@ from steam.client import SteamClient
 from steam.client.cdn import CDNClient, CDNDepotManifest
 import steamfiles.acf
 
-def get_game_location(appid: int) -> Path:
+def get_game_location_windows(appid: int) -> Path:
 
-    def _get_game_location_windows(appid: int):
-        #Thank you kinsi55 for this trick
-        #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
-        path = winreg.QueryValueEx(key, "InstallLocation")[0]
-        winreg.CloseKey(key)
-        return Path(path)
-
-    def _get_game_location_linux(appid: int):
-        return Path(f"{os.getenv('HOME')}/.local/share/Steam/steamapps/some/folder")
-
-    if sys.platform == "win32":
-        return _get_game_location_windows(appid)
-    elif sys.platform == "linux":
-        return _get_game_location_linux(appid)
+    #Thank you kinsi55 for this trick
+    #https://github.com/kinsi55/BeatSaber_UpdateSkipper/blob/master/Form1.cs
+    key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Steam App %i" % appid)
+    path = winreg.QueryValueEx(key, "InstallLocation")[0]
+    winreg.CloseKey(key)
+    return Path(path)
 
 def get_steam_location():
     def _get_steam_location_windows():
@@ -56,7 +47,15 @@ def get_steam_location():
 
 def get_manifest_location(appid: int) -> Path:
 
-    return get_game_location(appid).parent.parent / ("appmanifest_%i.acf" % appid)
+    if sys.platform == "win32":
+        return get_game_location_windows(appid).parent.parent / ("appmanifest_%i.acf" % appid)
+    elif sys.platform == "linux":
+        with open(Path.home() / ".local/share/Steam/steamapps/libraryfolders.vdf") as f:
+            for i, lib in steamfiles.acf.load(f)["libraryfolders"].items():
+                for _appid, size in lib["apps"].items():
+                    if int(_appid) == appid:
+                        return Path(lib["path"]) / "steamapps"/ ("appmanifest_%i.acf" % appid)
+        raise ValueError("Could not locate app with id '%i'. Please locate it and manually specify the path to the manifest with -p" % appid)
 
 def load_credentials():
 
